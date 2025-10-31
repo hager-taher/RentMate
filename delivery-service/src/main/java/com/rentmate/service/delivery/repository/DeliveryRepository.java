@@ -14,6 +14,6 @@ public interface DeliveryRepository extends JpaRepository<Delivery, Long> {
             LocalDateTime from,
             LocalDateTime to
     );
-    List<Delivery> findByAssignedDeliveryGuyId(Long deliveryGuyId);
+    List<Delivery> findByAssignedDeliveryGuy_Id(Long deliveryGuyId);
 
 }

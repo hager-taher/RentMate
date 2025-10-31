@@ -33,6 +33,10 @@ public class Delivery {
 
     private String renterAddress ;
     private String ownerAddress;
+    private String renterName ;//new
+    private String ownerName;//new
+    private String renterPhone ;
+    private String ownerPhone;
 
     @Enumerated(EnumType.STRING)
     private DeliveryStatus status;

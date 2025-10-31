@@ -25,6 +25,18 @@ public class DeliveryProcessService {
     private final DeliveryRepository deliveryRepository;
     private final DeliveryGuyRepository deliveryGuyRepository;
 
+    public void handleDeliveryAction(Long deliveryId) {
+        Delivery delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(() -> new RuntimeException("Delivery not found"));
+
+        if (delivery.getType().equalsIgnoreCase("FORWARD")) {
+           completeForward(deliveryId);
+        } else if (delivery.getType().equalsIgnoreCase("RETURN")) {
+            completeReturn(deliveryId);
+        } else {
+            throw new RuntimeException("Unknown delivery type");
+        }
+    }
 
     public void startForward(Long rentalId, Long renterId, Long ownerId ,String renterAddress , String ownerAddress , LocalDateTime startDate) {
         DeliveryGuy guy = deliveryGuyRepository.findFirstByStatus(DeliveryManStatus.AVAILABLE)
@@ -83,22 +95,22 @@ public class DeliveryProcessService {
         // ممكن كمان تبعتي نوتيفيكيشن أو ميسج لـ RabbitMQ
         // deliveryEventPublisher.publishStartEvent(delivery);
     }
-    public void completeForward(Long rentalId) {
-        // update last delivery related to rental
-        deliveryRepository.findByRentalId(rentalId).stream().findFirst().ifPresent(d -> {
-            d.setStatus(DeliveryStatus.DELIVERED);
-            d.setLastModifiedDate(new Date());
-            deliveryRepository.save(d);
+    public void completeForward(Long deliveryId) {
+        Delivery delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(() -> new RuntimeException("Delivery not found"));
 
+        delivery.setStatus(DeliveryStatus.DELIVERED);
+        delivery.setLastModifiedDate(new Date());
+        deliveryRepository.save(delivery);
 
-            DeliveryGuy guy = d.getAssignedDeliveryGuy();
-            if (guy != null) {
-                guy.setStatus(DeliveryManStatus.AVAILABLE);
-                guy.setLastUpdated(LocalDateTime.now());
-                deliveryGuyRepository.save(guy);
-            }
-        });
-        publisher.publishStatus("delivery.delivered", rentalId);
+        DeliveryGuy guy = delivery.getAssignedDeliveryGuy();
+        if (guy != null) {
+            guy.setStatus(DeliveryManStatus.AVAILABLE);
+            guy.setLastUpdated(LocalDateTime.now());
+            deliveryGuyRepository.save(guy);
+        }
+
+        publisher.publishStatus("delivery.delivered", delivery.getRentalId());
     }
 
     public void startReturn(Long rentalId, Long renterId, Long ownerId , Long itemId , String renterAddress , String ownerAddress ) {
@@ -130,19 +142,21 @@ public class DeliveryProcessService {
         publisher.publishStatus("delivery.inReturning", rentalId);
     }
 
-    public void completeReturn(Long rentalId) {
-        deliveryRepository.findByRentalId(rentalId).stream().findFirst().ifPresent(d -> {
-            d.setStatus(DeliveryStatus.RETURNED);
-            d.setLastModifiedDate(new Date());
-            deliveryRepository.save(d);
-            DeliveryGuy guy = d.getAssignedDeliveryGuy();
-            if (guy != null) {
-                guy.setStatus(DeliveryManStatus.AVAILABLE);
-                guy.setLastUpdated(LocalDateTime.now());
-                deliveryGuyRepository.save(guy);
-            }
-        });
+    public void completeReturn(Long deliveryId) {
+        Delivery delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(() -> new RuntimeException("Delivery not found"));
 
-        publisher.publishStatus("delivery.returned", rentalId);
+        delivery.setStatus(DeliveryStatus.RETURNED);
+        delivery.setLastModifiedDate(new Date());
+        deliveryRepository.save(delivery);
+
+        DeliveryGuy guy = delivery.getAssignedDeliveryGuy();
+        if (guy != null) {
+            guy.setStatus(DeliveryManStatus.AVAILABLE);
+            guy.setLastUpdated(LocalDateTime.now());
+            deliveryGuyRepository.save(guy);
+        }
+
+        publisher.publishStatus("delivery.returned", delivery.getRentalId());
     }
 }
